@@ -27,7 +27,12 @@ client.on('messageCreate', async (message) => {
 
         const userToBan = message.mentions.users.first();
         const args = message.content.split(' ').slice(1);
-        const reason = args.slice(1).join(' ') || `${message.author.username}'s ban hammer`;
+        const rawReason = args.slice(1).join(' ') || `${message.author.username}'s ban hammer`;
+        const isAppealable = !rawReason.includes('- no appeal');
+        const reason = rawReason.replace('- no appeal', '').trim();
+        const appealText = isAppealable
+            ? '*If you wish to appeal this ban, please open a ticket at [hosthorizon.eu](https://hosthorizon.eu)*'
+            : '*This ban is non-appealable. Please do not open a ticket complaining about it.*';
 
         if (!userToBan) {
             return message.reply('Please mention a user to ban.');
@@ -38,13 +43,9 @@ client.on('messageCreate', async (message) => {
             try {
                 // Attempt to send a DM to the user
                 const dmEmbed = new EmbedBuilder()
-                    .setTitle('🚫 You have been banned')
+                    .setTitle(`You have been banned from ${message.guild.name}`)
                     .setColor(0xff0000)
-                    .setDescription(`You have been banned from **${message.guild.name}**`)
-                    .addFields(
-                        { name: 'Reason:', value: reason, inline: false },
-                        { name: 'Appeal:', value: 'If you wish to appeal this ban, please open a ticket at https://hosthorizon.eu', inline: false }
-                    )
+                    .setDescription(`**Reason:** ${reason}\n**Length:** Permanent\n\n${appealText}`)
                     .setThumbnail(userToBan.displayAvatarURL())
                     .setFooter({ text: message.guild.name, iconURL: message.guild.iconURL() })
                     .setTimestamp();
@@ -60,7 +61,7 @@ client.on('messageCreate', async (message) => {
                 const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
                 if (logChannel) {
                     const embed = new EmbedBuilder()
-                        .setTitle('🚫 New Global Ban')
+                        .setTitle('New Global Ban')
                         .setColor(0xff0000)
                         .setDescription(`**Global Ban Reason:** ${reason}`)
                         .addFields(
