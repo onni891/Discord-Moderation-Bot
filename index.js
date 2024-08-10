@@ -36,10 +36,27 @@ client.on('messageCreate', async (message) => {
         const member = message.guild.members.cache.get(userToBan.id);
         if (member) {
             try {
+                // Attempt to send a DM to the user
+                const dmEmbed = new EmbedBuilder()
+                    .setTitle('🚫 You have been banned')
+                    .setColor(0xff0000)
+                    .setDescription(`You have been banned from **${message.guild.name}**`)
+                    .addFields(
+                        { name: 'Reason:', value: reason, inline: false },
+                        { name: 'Appeal:', value: 'If you wish to appeal this ban, please open a ticket at https://hosthorizon.eu', inline: false }
+                    )
+                    .setThumbnail(userToBan.displayAvatarURL())
+                    .setFooter({ text: message.guild.name, iconURL: message.guild.iconURL() })
+                    .setTimestamp();
+
+                await userToBan.send({ embeds: [dmEmbed] });
+
+                // Ban the member
                 await member.ban({ reason });
+
                 message.channel.send(`${userToBan.tag} has been banned.`);
 
-                // Log the ban
+                // Log the ban in the specified channel
                 const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
                 if (logChannel) {
                     const embed = new EmbedBuilder()
@@ -58,7 +75,7 @@ client.on('messageCreate', async (message) => {
                     logChannel.send({ embeds: [embed] });
                 }
             } catch (error) {
-                message.reply('I was unable to ban the member. Do I have the necessary permissions?');
+                message.reply('I was unable to ban the member or send them a DM. Do I have the necessary permissions?');
             }
         } else {
             message.reply('That user is not in this server.');
