@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, PermissionsBitField } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, EmbedBuilder } = require('discord.js');
 require('dotenv').config();
 
 const client = new Client({
@@ -9,6 +9,8 @@ const client = new Client({
         GatewayIntentBits.GuildMembers,
     ],
 });
+
+const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID; // Log channel ID from .env
 
 client.once('ready', () => {
     console.log(`Logged in as ${client.user.tag}!`);
@@ -23,18 +25,38 @@ client.on('messageCreate', async (message) => {
             return message.reply('You do not have permission to use this command.');
         }
 
+        const userToBan = message.mentions.users.first();
         const args = message.content.split(' ').slice(1);
-        const userToBan = message.mentions.users.first() || await client.users.fetch(args[0]).catch(() => null);
+        const reason = args.slice(1).join(' ') || `${message.author.username}'s ban hammer`;
 
         if (!userToBan) {
-            return message.reply('Please mention a user or provide a valid user ID to ban.');
+            return message.reply('Please mention a user to ban.');
         }
 
         const member = message.guild.members.cache.get(userToBan.id);
         if (member) {
             try {
-                await member.ban({ reason: 'Banned by bot command' });
+                await member.ban({ reason });
                 message.channel.send(`${userToBan.tag} has been banned.`);
+
+                // Log the ban
+                const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
+                if (logChannel) {
+                    const embed = new EmbedBuilder()
+                        .setTitle('🚫 New Global Ban')
+                        .setColor(0xff0000)
+                        .setDescription(`**Global Ban Reason:** ${reason}`)
+                        .addFields(
+                            { name: '👤 User', value: `<@${userToBan.id}> (ID: ${userToBan.id})`, inline: false },
+                            { name: '🔨 Moderator', value: `<@${message.author.id}> (ID: ${message.author.id})`, inline: false },
+                            { name: '🆔 Case ID', value: `banid-${Date.now()}`, inline: false }
+                        )
+                        .setThumbnail(userToBan.displayAvatarURL())
+                        .setFooter({ text: message.guild.name, iconURL: message.guild.iconURL() })
+                        .setTimestamp();
+
+                    logChannel.send({ embeds: [embed] });
+                }
             } catch (error) {
                 message.reply('I was unable to ban the member. Do I have the necessary permissions?');
             }
@@ -53,7 +75,7 @@ client.on('messageCreate', async (message) => {
         const userId = message.mentions.users.first()?.id || args[0];
 
         if (!userId) {
-            return message.reply('Please provide a user mention or a valid user ID to unban.');
+            return message.reply('Please mention a user or provide a valid user ID to unban.');
         }
 
         try {
@@ -71,4 +93,3 @@ client.on('messageCreate', async (message) => {
 });
 
 client.login(process.env.TOKEN);
-
